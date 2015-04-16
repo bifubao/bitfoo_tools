@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="img/favicon.png">
+
+    <title>Bitfoo Backup Recovery tools</title>
+
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <style type="text/css">
+        #dropzone {
+            border: 2px dashed #ccc;
+            height: 200px;
+        }
+        .ondrop {
+          background-color: lightblue;
+        }
+        .wallet {
+          border:1px solid #ccc;
+          padding:1em;
+          margin:1em 0 0 0;
+
+        }
+    </style>
+
+  </head>
+
+  <body>
+
+    <!-- Fixed navbar -->
+    <nav class="navbar navbar-default">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">Bitfoo Backup Recovery tools</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container">
+      <div id="dropzone" class="jumbotron">
+        Drag and drop your backup file here to recover your Private Keys
+      </div>
+
+      <table class="table table-bordered" id="infoTable" style="display:none">
+        <tbody>
+          <tr>
+            <td>Number of Wallets</td>
+            <td>Backup date</td>
+          </tr>
+          <tr>
+            <td id="walletNumberLable"></td>
+            <td id="dateLable">unknown</td>
+          </tr>
+        </tbody>
+      </table>
+      <div id="result">
+    
+      </div>
+
+    </div> <!-- /container -->
+
+<script type="text/template" id="resultTableTemplate">
+<div class="wallet">
+        <h2><%= name %></h2>
+        <table class="table table-bordered">
+          <tbody>
+            <tr>
+              <td>Name</td>
+              <td>Type</td>
+              <td>Address count</td>
+            </tr>
+            <tr>
+              <td><%= name %></td>
+              <td><%= type %></td>
+              <td><%= addrs.length %></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="table table-striped">
+          <caption>Addresses</caption>
+          <thead>
+            <tr>
+              <th>Address</th>
+              <th>Private key</th>
+            </tr>
+          </thead>
+
+          <tbody>
+          <% for(var i=0;i<addrs.length;i++) {%>
+            <tr>
+              <th scope="row"><%= addrs[i].addr %></th>
+              <td><%= _.findWhere(decrypted.keys, {addr: addrs[i].addr}).priv %></td>
+            </tr>
+          <%} %>
+          </tbody>
+        </table>  
+</div>
+</script>
+
+
+<div class="modal fade" id="passwordDialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title">Password</h4>
+      </div>
+      <div class="modal-body">
+        <p>Your Master password is required to open the backup.</p>
+        
+
+        <form id="passwordForm">
+          <div class="form-group">
+            <label for="recipient-name" class="control-label">Password:</label>
+            <input type="password" class="form-control" id="passwordInput">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="decrypt()">Confirm</button>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <!--<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>-->
+    <script src="js/jquery-1.11.2.min.js"></script>
+    <script src="js/sjcl.js"></script>
+    <script src="js/underscore-min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script type="text/javascript">
+window.decrypted_result = [];
+$('#passwordForm').submit(decrypt);
+
+function render() {
+  var template = _.template($('#resultTableTemplate').html());
+  $('#result').html('');
+  for(var i=0;i < result.wallets.length; i++) {
+    console.log(i);
+    console.log(result.wallets[i].name);
+    $('#result').append(template(result.wallets[i]));
+  }
+}
+
+function decrypt() {
+  var password = $('#passwordInput').val();
+  
+  try {
+    sjcl.decrypt(password, result.master_encrypted);
+    for(var i=0;i<result.wallets.length;i++) {
+      var encrypted = JSON.stringify(result.wallets[i].encrypted);
+      result.wallets[i].decrypted = $.parseJSON(sjcl.decrypt(password, encrypted));
+    }
+    
+  } catch(e) {
+    alert('Password not correct or your backup is invalid');
+    return false;
+  }
+  render();
+  $('#passwordDialog').modal('hide');
+  return false;
+}
+
+jQuery(document).ready(function($) {
+
+  $('#dropzone').on('dragover enter', function(e) {
+    $(this).addClass('ondrop');
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  $('#dropzone').on('dragleave drop', function(e) {
+    $(this).removeClass('ondrop');
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+
+  $('#dropzone').on('drop', function(e){
+    if(e.originalEvent.dataTransfer){
+      if(e.originalEvent.dataTransfer.files.length == 1) {
+
+        /*Handle FILES HERE*/
+        handleBackup(e.originalEvent.dataTransfer.files);
+      } else {
+        alert('Please drag and drop ONE backup file.');
+      }
+    } else {
+      alert('Internet Explorer 9 and below are not supported for this feature.');
+    }
+  });
+
+  $('#passwordDialog').on('shown.bs.modal', function (e) {
+    $('#passwordInput').focus();
+  })
+
+  function handleBackup(e){
+    if (!window.confirm("Your Private key will show on the screen, do you want to continue?")) { 
+      return false;
+    }
+
+    var reader = new FileReader();
+
+    reader.onload = function(e) {
+      var text = reader.result;
+      window.result = $.parseJSON(text);
+
+      $('#walletNumberLable').html(result.wallets.length);
+      var date = new Date(result.last_modify_timestamp*1000);
+      $('#dateLable').html(date.toString());
+      $('#infoTable').show();
+
+      $('#passwordDialog').modal('show');
+      
+    }
+
+    reader.readAsText(e.item(0));
+  }
+
+});
+
+    </script>
+  </body>
+</html>
