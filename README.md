@@ -1,7 +1,7 @@
 # bitfoo_tools
-bitfoo backup recovery tools
+Tools to export your private keys from your bitfoo wallet backup.
 
 ## How to use
-1.download zip file
-1.unzip file and run index.html
-1.drag and drop your backup file to the drop zone to recover your backup
+1. Download files
+2. Run index.html
+3. Drag and drop your backup file to the drop zone to recover your backup
